@@ -65,6 +65,9 @@
   .del-btn:hover{color:var(--red);background:var(--red-l)}
   .info-box{background:var(--bg2);border-radius:var(--rl);padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:1.5rem}
   .info-box strong{font-weight:500;color:var(--t1)}
+  .groundedly-badge{text-align:center;padding:1.5rem 1rem 0.5rem;font-size:11px;color:var(--t3)}
+  .groundedly-badge a{color:var(--purple);text-decoration:none;font-weight:500}
+  .groundedly-badge a:hover{text-decoration:underline}
   .toggle-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
   .tog{padding:5px 11px;font-size:12px;border:0.5px solid var(--b2);border-radius:var(--rm);background:transparent;color:var(--t2);cursor:pointer}
   .tog.on{background:var(--purple-l);border-color:var(--purple);color:var(--purple-d)}
@@ -101,6 +104,7 @@
     <strong>Why not standard Wald?</strong> The standard Wald formula (p ± z·√(p(1-p)/n)) produces intervals that are too narrow and can fall outside [0,1] at small n. Adjusted-Wald adds 2 pseudo-successes and 2 pseudo-failures before computing, which consistently outperforms Wald at n &lt; 40. For 0% or 100% outcomes, LaPlace (add 1 success and 2 to n) is used instead.
   </div>
 </div>
+<div class="groundedly-badge">Grounded in <a href="https://groundedly.vercel.app" target="_blank" rel="noopener">Groundedly</a></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
