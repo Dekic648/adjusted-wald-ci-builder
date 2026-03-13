@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adjusted-Wald CI Builder</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#fff;--bg2:#f5f4f0;--bg3:#eeecea;
+    --t1:#1a1a18;--t2:#5f5e5a;--t3:#888780;
+    --b1:rgba(0,0,0,0.12);--b2:rgba(0,0,0,0.22);
+    --purple:#7F77DD;--purple-d:#534AB7;--purple-l:#EEEDFE;
+    --teal:#1D9E75;--teal-l:#E1F5EE;
+    --red:#E24B4A;--red-l:#FCEBEB;
+    --amber:#BA7517;--amber-l:#FAEEDA;
+    --rm:8px;--rl:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--bg:#1c1c1a;--bg2:#252523;--bg3:#2e2e2b;--t1:#f0ede8;--t2:#b4b2a9;--t3:#888780;--b1:rgba(255,255,255,0.1);--b2:rgba(255,255,255,0.2);--purple:#9F99E8;--purple-d:#AFA9EC;--purple-l:#26215C;--teal:#5DCAA5;--teal-l:#04342C;--red:#F09595;--red-l:#501313;--amber:#EF9F27;--amber-l:#412402}
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--t1);min-height:100vh;padding:2rem 1rem}
+  .page{max-width:860px;margin:0 auto;background:var(--bg);border-radius:var(--rl);border:0.5px solid var(--b1);padding:2rem 2.5rem}
+  h1{font-size:20px;font-weight:500;margin-bottom:4px}
+  .sub{font-size:13px;color:var(--t2);margin-bottom:2rem}
+  .sl{font-size:10px;font-weight:500;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+  .row-inputs{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12px;color:var(--t2)}
+  .field input{width:110px;padding:8px 10px;border:0.5px solid var(--b2);border-radius:var(--rm);background:var(--bg);color:var(--t1);font-size:14px}
+  .field input:focus{outline:none;border-color:var(--purple)}
+  .field select{padding:8px 10px;border:0.5px solid var(--b2);border-radius:var(--rm);background:var(--bg);color:var(--t1);font-size:14px;cursor:pointer}
+  .add-btn{padding:8px 14px;border:0.5px dashed var(--b2);border-radius:var(--rm);background:transparent;color:var(--t3);font-size:12px;cursor:pointer;transition:all .15s;align-self:flex-end}
+  .add-btn:hover{color:var(--t2);border-style:solid;background:var(--bg2)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:1.5rem}
+  th{font-size:11px;font-weight:500;color:var(--t3);text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--b1)}
+  td{padding:8px;border-bottom:0.5px solid var(--b1);vertical-align:middle}
+  .bar-wrap{height:10px;background:var(--bg2);border-radius:5px;position:relative;min-width:120px}
+  .bar-fill{height:10px;border-radius:5px;position:absolute}
+  .bar-point{width:2px;height:14px;background:var(--t1);position:absolute;top:-2px;border-radius:1px}
+  .method-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+  .badge-wald{background:var(--purple-l);color:var(--purple-d)}
+  .badge-laplace{background:var(--amber-l);color:var(--amber)}
+  .badge-wrong{background:var(--red-l);color:var(--red)}
+  .del-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+  .del-btn:hover{color:var(--red);background:var(--red-l)}
+  .info-box{background:var(--bg2);border-radius:var(--rl);padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:1.5rem}
+  .info-box strong{font-weight:500;color:var(--t1)}
+  .toggle-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+  .tog{padding:5px 11px;font-size:12px;border:0.5px solid var(--b2);border-radius:var(--rm);background:transparent;color:var(--t2);cursor:pointer}
+  .tog.on{background:var(--purple-l);border-color:var(--purple);color:var(--purple-d)}
+  .empty-state{text-align:center;padding:2rem;color:var(--t3);font-size:13px}
+  .chart-area{position:relative;height:200px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Adjusted-Wald confidence interval builder</h1>
+  <p class="sub">Enter tasks and observed completions. Compares Adjusted-Wald vs standard Wald — and auto-switches to LaPlace for 0% / 100% outcomes.</p>
+
+  <div class="sl">Tasks</div>
+  <div class="row-inputs" id="inputs-area">
+    <div class="field"><label>Task label</label><input type="text" id="lbl-0" value="Task 1" style="width:140px"></div>
+    <div class="field"><label>Successes</label><input type="number" id="s-0" value="8" min="0"></div>
+    <div class="field"><label>n (total)</label><input type="number" id="n-0" value="10" min="1"></div>
+    <div class="field"><label>Confidence</label>
+      <select id="conf-0"><option value="0.90">90%</option><option value="0.95" selected>95%</option><option value="0.99">99%</option></select>
+    </div>
+    <button class="add-btn" onclick="addRow()">+ add task</button>
+  </div>
+
+  <div class="toggle-row">
+    <button class="tog on" id="tog-wald" onclick="toggleCol('wald')">Adjusted-Wald</button>
+    <button class="tog on" id="tog-wrong" onclick="toggleCol('wrong')">Standard Wald (wrong)</button>
+    <button class="tog on" id="tog-laplace" onclick="toggleCol('laplace')">LaPlace (0%/100%)</button>
+  </div>
+
+  <div class="sl">Results</div>
+  <div id="results-table"></div>
+
+  <div class="info-box">
+    <strong>Why not standard Wald?</strong> The standard Wald formula (p ± z·√(p(1-p)/n)) produces intervals that are too narrow and can fall outside [0,1] at small n. Adjusted-Wald adds 2 pseudo-successes and 2 pseudo-failures before computing, which consistently outperforms Wald at n &lt; 40. For 0% or 100% outcomes, LaPlace (add 1 success and 2 to n) is used instead.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let rows = [0]; let rowCount = 1;
+let showWald = true, showWrong = true, showLaplace = true;
+
+function addRow() {
+  const id = rowCount++;
+  rows.push(id);
+  const area = document.getElementById('inputs-area');
+  const btn = area.querySelector('.add-btn');
+  const div = document.createElement('div');
+  div.style.display='contents';
+  div.id='input-row-'+id;
+  div.innerHTML = `
+    <div class="field"><label>Task label</label><input type="text" id="lbl-${id}" value="Task ${id+1}" style="width:140px"></div>
+    <div class="field"><label>Successes</label><input type="number" id="s-${id}" value="7" min="0"></div>
+    <div class="field"><label>n (total)</label><input type="number" id="n-${id}" value="10" min="1"></div>
+    <div class="field"><label>Confidence</label><select id="conf-${id}"><option value="0.90">90%</option><option value="0.95" selected>95%</option><option value="0.99">99%</option></select></div>
+    <button class="del-btn" onclick="removeRow(${id})">✕</button>`;
+  area.insertBefore(div, btn);
+  area.querySelectorAll('input,select').forEach(el => el.oninput = render);
+  render();
+}
+
+function removeRow(id) {
+  rows = rows.filter(r => r !== id);
+  const el = document.getElementById('input-row-'+id);
+  if (el) el.remove();
+  render();
+}
+
+function z(conf) {
+  const map = {0.90:1.645,0.95:1.96,0.99:2.576};
+  return map[conf] || 1.96;
+}
+
+function adjustedWald(s, n, conf) {
+  const zv = z(conf);
+  const nt = n + zv*zv;
+  const pt = (s + zv*zv/2) / nt;
+  const me = zv * Math.sqrt(pt*(1-pt)/nt);
+  return { low: Math.max(0, pt-me), high: Math.min(1, pt+me), p: s/n };
+}
+
+function standardWald(s, n, conf) {
+  const p = s/n, zv = z(conf);
+  const me = zv * Math.sqrt(p*(1-p)/n);
+  return { low: Math.max(0, p-me), high: Math.min(1, p+me), p };
+}
+
+function laplace(s, n) {
+  const p = (s+1)/(n+2);
+  return { low: p, high: p, p: s/n, isLaplace: true };
+}
+
+function isEdge(s, n) { return s === 0 || s === n; }
+
+function pct(v) { return (v*100).toFixed(1)+'%'; }
+
+function toggleCol(col) {
+  if (col==='wald') showWald = !showWald;
+  if (col==='wrong') showWrong = !showWrong;
+  if (col==='laplace') showLaplace = !showLaplace;
+  document.getElementById('tog-'+col).classList.toggle('on');
+  render();
+}
+
+function render() {
+  const data = rows.map(id => {
+    const lbl = document.getElementById('lbl-'+id)?.value || ('Task '+(id+1));
+    const s = parseInt(document.getElementById('s-'+id)?.value) || 0;
+    const n = Math.max(1, parseInt(document.getElementById('n-'+id)?.value) || 1);
+    const conf = parseFloat(document.getElementById('conf-'+id)?.value) || 0.95;
+    const edge = isEdge(s, n);
+    const aw = adjustedWald(s, n, conf);
+    const sw = standardWald(s, n, conf);
+    const lp = laplace(s, n);
+    return { lbl, s, n, conf, edge, aw, sw, lp };
+  });
+
+  let html = '<table><thead><tr><th>Task</th><th>Result</th>';
+  if (showWald) html += '<th>Adjusted-Wald CI</th><th>Interval</th>';
+  if (showWrong) html += '<th>Standard Wald CI</th>';
+  if (showLaplace) html += '<th>LaPlace (edge)</th>';
+  html += '<th></th></tr></thead><tbody>';
+
+  data.forEach((d, i) => {
+    const aw = d.aw, sw = d.sw, lp = d.lp;
+    html += `<tr>
+      <td style="font-weight:500">${d.lbl}</td>
+      <td>${d.s}/${d.n} <span style="color:var(--t3)">(${pct(d.s/d.n)})</span></td>`;
+
+    if (showWald) {
+      html += `<td>
+        <span style="color:var(--purple);font-weight:500">${pct(aw.low)} – ${pct(aw.high)}</span>
+        <span class="method-badge badge-wald" style="margin-left:4px">${d.edge?'LaPlace':'Adj-Wald'}</span>
+      </td>
+      <td><div class="bar-wrap" style="min-width:140px">
+        <div class="bar-fill" style="background:var(--purple-l);left:${aw.low*100}%;width:${(aw.high-aw.low)*100}%"></div>
+        <div class="bar-point" style="left:calc(${d.s/d.n*100}% - 1px)"></div>
+      </div></td>`;
+    }
+    if (showWrong) {
+      const wider = (sw.high - sw.low) > (aw.high - aw.low);
+      html += `<td style="color:var(--red)">${pct(sw.low)} – ${pct(sw.high)}
+        <span class="method-badge badge-wrong" style="margin-left:4px">${wider?'wider':'narrower'}</span>
+      </td>`;
+    }
+    if (showLaplace) {
+      html += `<td style="color:${d.edge?'var(--amber)':'var(--t3)'}">${d.edge ? pct(lp.low) : '—'}</td>`;
+    }
+    html += `<td>${i>0?`<button class="del-btn" onclick="removeRow(${rows[i]})">✕</button>`:''}</td></tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  if (data.length === 0) html = '<div class="empty-state">Add a task above to see results.</div>';
+  document.getElementById('results-table').innerHTML = html;
+}
+
+document.getElementById('inputs-area').querySelectorAll('input,select').forEach(el => el.oninput = render);
+render();
+</script>
+</body>
+</html>
